@@ -1,6 +1,6 @@
 var express = require('express');
 const { CONTRACTADDRESS_USDTM_100, RPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent } = require("../web3/index");
-const { readCommitment, writeCommitment } = require("../in-memory-kv/index");
+const { readCommitment, writeCommitment, deleteCommitment } = require("../in-memory-kv/index");
 var router = express.Router();
 
 
@@ -42,22 +42,29 @@ async function handleWeb3(body) {
   const contract = await getContract(provider, wallet, artifact.abi, artifact.bytecode);
 
   const commitments = await bunnyNotesCommitments(contract, body.commitment);
-
   if (!commitments.used) {
     return [false, "Invalid Note! Missing Deposit!"]
   }
 
   const noteIsSpent = await bunnyNoteIsSpent(contract, body.nullifierHash);
-
   if (noteIsSpent) {
     return [false, "Note already spent!"]
   }
 
   // checking if the commitment is in the KV, this is to protect against spamming
   const kvCommitment = await readCommitment(body.commitment);
+  if (kvCommitment !== undefined) {
 
-  if (kvCommitment === CONTRACTADDRESS_USDTM_100) {
-    return [false, "Transaction already dispatched!"]
+    // If the date of the commitment is less than 10 min then it's an error, 
+    // otherwise I delete the commitment and allow try again! 10 min is plenty of block time
+
+    const timeNow = new Date().getTime();
+
+    if ((timeNow - kvCommitment) < 600000) {
+      return [false, "Transaction already dispatched!"]
+    } else {
+      deleteCommitment(body.commitment);
+    }
   }
 
   if (body.type === "Gift Card") {
@@ -67,7 +74,7 @@ async function handleWeb3(body) {
   }
 
   // save the commitment in workers KV so I know the transaciton has been dispatched for it!
-  await writeCommitment(body.commitment, CONTRACTADDRESS_USDTM_100)
+  await writeCommitment(body.commitment, new Date().getTime())
 
   return [true, "Transaction dispatched!"]
 }
@@ -82,16 +89,11 @@ router.post('/', async function (req, res, next) {
     // Return invalid request body
     res.status(500).json({ msg: "Invalid request!" })
   }
-
   const [success, msg] = await handleWeb3(body);
-
   if (!success) {
     res.status(500).json({ msg })
   }
-
   res.status(200).json({ msg })
-
-
 });
 
 module.exports = router;
