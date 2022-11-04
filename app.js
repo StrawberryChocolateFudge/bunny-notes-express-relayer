@@ -7,8 +7,10 @@ var logger = require('morgan');
 var cors = require('cors')
 
 var indexRouter = require('./routes/index');
+var helmet = require("helmet");
 
 var app = express();
+app.use(helmet())
 app.use(cors());
 app.use(logger('dev'));
 app.use(express.json());
