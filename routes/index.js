@@ -66,13 +66,15 @@ async function handleWeb3(body) {
       deleteCommitment(body.commitment);
     }
   }
-
-  if (body.type === "Gift Card") {
-    await bunnyNotesWithdrawGiftCard(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
-  } else if (body.type === "Cash Note") {
-    await bunnyNotesWithdrawCashNote(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
+  try {
+    if (body.type === "Gift Card") {
+      await bunnyNotesWithdrawGiftCard(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
+    } else if (body.type === "Cash Note") {
+      await bunnyNotesWithdrawCashNote(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
+    }
+  } catch (err) {
+    return [false, "Transaciton reverted!"]
   }
-
   // save the commitment in workers KV so I know the transaciton has been dispatched for it!
   await writeCommitment(body.commitment, new Date().getTime())
 
