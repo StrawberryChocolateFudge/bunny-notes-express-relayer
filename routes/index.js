@@ -32,6 +32,10 @@ function validateBody(body) {
   return [true, "Valid"];
 }
 
+// This function submits the zkSnark to the network
+// NOTE: this is only on testnet. on mainnet additional input verification is required to handle more edge cases, 
+// TODO: proof verification off chain before the transaction is dispatched!!
+
 async function handleWeb3(body) {
   const artifact = await getArtifact();
 
@@ -56,7 +60,7 @@ async function handleWeb3(body) {
   if (kvCommitment !== undefined) {
 
     // If the date of the commitment is less than 10 min then it's an error, 
-    // otherwise I delete the commitment and allow try again! 10 min is plenty of block time
+    // otherwise I delete the commitment and allow try again! 10 min is plenty of block time (this is an edge case)
 
     const timeNow = new Date().getTime();
 
