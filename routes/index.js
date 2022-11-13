@@ -1,24 +1,19 @@
 var express = require('express');
-const { CONTRACTADDRESS_USDTM_100, RPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent } = require("../web3/index");
+const { toNoteHex, verifyProof, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent, packToSolidityProof } = require("../web3/index");
 const { readCommitment, writeCommitment, deleteCommitment } = require("../in-memory-kv/index");
+const { verificationKey } = require("../web3/verificationKey");
 var router = express.Router();
 
 
 function validateBody(body) {
-  if (!body.solidityProof) {
+  if (!body.proof) {
     return [false, "Missing Proof"];
   }
-  if (!body.nullifierHash) {
-    return [false, "Missing NullifierHash"];
-  }
-  if (!body.commitment) {
-    return [false, "Missing Commitment"]
+  if (!body.publicSignals) {
+    return [false, "Missing public signals!"]
   }
   if (!body.recepient) {
     return [false, "Missing recepinet"];
-  }
-  if (!body.change) {
-    return [false, "Missing Change"];
   }
   if (!body.denomination) {
     return [false, "Missing denomination"];
@@ -32,11 +27,19 @@ function validateBody(body) {
   return [true, "Valid"];
 }
 
-// This function submits the zkSnark to the network
-// NOTE: this is only on testnet. on mainnet additional input verification is required to handle more edge cases, 
-// TODO: proof verification off chain before the transaction is dispatched!!
-
 async function handleWeb3(body) {
+
+  const nullifierHash = toNoteHex(body.publicSignals[0]);
+  const commitment = toNoteHex(body.publicSignals[1]);
+  const change = body.publicSignals[3];
+  try {
+    const proofValid = await verifyProof(verificationKey, { proof: body.proof, publicSignals: [nullifierHash, commitment, body.recepient, change] })
+    if (!proofValid) {
+      return [false, "Invalid Proof!"]
+    }
+  } catch (err) {
+    return [false, "Invalid Proof!"];
+  }
   const artifact = await getArtifact();
 
   const provider = await getProvider();
@@ -45,12 +48,13 @@ async function handleWeb3(body) {
 
   const contract = await getContract(provider, wallet, artifact.abi, artifact.bytecode);
 
-  const commitments = await bunnyNotesCommitments(contract, body.commitment);
+  const commitments = await bunnyNotesCommitments(contract, commitment);
   if (!commitments.used) {
     return [false, "Invalid Note! Missing Deposit!"]
   }
 
-  const noteIsSpent = await bunnyNoteIsSpent(contract, body.nullifierHash);
+  const noteIsSpent = await bunnyNoteIsSpent(contract,
+    nullifierHash);
   if (noteIsSpent) {
     return [false, "Note already spent!"]
   }
@@ -65,22 +69,27 @@ async function handleWeb3(body) {
     const timeNow = new Date().getTime();
 
     if ((timeNow - kvCommitment) < 600000) {
-      return [false, "Transaction already dispatched!"]
+      return [false, "Transaction already dispatched! If it returned an error, you need to wait 10 minutes try again!"]
     } else {
       deleteCommitment(body.commitment);
     }
   }
+
+
+  const solidityProof = packToSolidityProof(body.proof)
+
+  // save the commitment to memory so I know the transaciton has been dispatched for it!
+  await writeCommitment(body.commitment, new Date().getTime())
+
   try {
     if (body.type === "Gift Card") {
-      await bunnyNotesWithdrawGiftCard(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
+      await bunnyNotesWithdrawGiftCard(contract, solidityProof, nullifierHash, commitment, body.recepient, change);
     } else if (body.type === "Cash Note") {
-      await bunnyNotesWithdrawCashNote(contract, body.solidityProof, body.nullifierHash, body.commitment, body.recepient, body.change);
+      await bunnyNotesWithdrawCashNote(contract, solidityProof, nullifierHash, commitment, body.recepient, change);
     }
   } catch (err) {
     return [false, "Transaciton reverted!"]
   }
-  // save the commitment in workers KV so I know the transaciton has been dispatched for it!
-  await writeCommitment(body.commitment, new Date().getTime())
 
   return [true, "Transaction dispatched!"]
 }
@@ -88,18 +97,22 @@ async function handleWeb3(body) {
 
 router.post('/', async function (req, res, next) {
   const body = req.body;
-
   const valid = validateBody(body);
 
   if (!valid) {
     // Return invalid request body
-    res.status(500).json({ msg: "Invalid request!" })
+    return res.status(500).json({ msg: "Invalid request!" })
   }
   const [success, msg] = await handleWeb3(body);
   if (!success) {
-    res.status(500).json({ msg })
+    return res.status(500).json({ msg })
   }
-  res.status(200).json({ msg })
+  return res.status(200).json({ msg })
 });
+
+router.get("/", async function (req, res, next) {
+  return res.status(200).send("Relayer is online");
+})
+
 
 module.exports = router;
