@@ -3,16 +3,41 @@ const fetch = require("node-fetch-commonjs");
 const { groth16 } = require("snarkjs");
 const bigInt = require("big-integer")
 
-const CONTRACTADDRESS_USDTM_100 = "0xa756b2b52Ba893a6109561bC86138Cbb897Fb2e0";
+const CONTRACTADDRESS_USDTM_100 = "0x94D1f7e4667f2aE54494C2a99A18C8B4aED9B22A";
+
+const CONTRACTADDRESS_BTT_1 = "0x2D524Ee2669b7F521B9d903A56002ba565cc50ba"
+
+const BTTCTESTNETID = "0x405";
+
+const validNetworks = [BTTCTESTNETID];
+
 const RPCURL = "https://pre-rpc.bt.io/";
+
+function getContractAddress(currency, denomination, network) {
+    switch (network) {
+        case BTTCTESTNETID:
+            if (currency === "USDTM" && denomination === "100") {
+                return CONTRACTADDRESS_USDTM_100
+            } else if (currency === "BTT" && denomination === "1") {
+                return CONTRACTADDRESS_BTT_1;
+            }
+        default:
+            return "";
+    }
+}
 
 async function getArtifact() {
     const res = await fetch("https://bunnynotes.finance/ERC20Notes.json");
     return res.json();
 }
 
-async function getProvider() {
-    return new ethers.providers.JsonRpcProvider(RPCURL)
+async function getProvider(network) {
+    switch (network) {
+        case BTTCTESTNETID:
+            return new ethers.providers.JsonRpcProvider(RPCURL)
+        default:
+            break;
+    }
 }
 
 async function getWallet(provider) {
@@ -20,13 +45,14 @@ async function getWallet(provider) {
     return new ethers.Wallet(key, provider)
 }
 
-async function getContract(provider, wallet, abi, bytecode) {
-    const contract = new ethers.Contract(CONTRACTADDRESS_USDTM_100, abi, provider);
+async function getContract(provider, wallet, abi, currency, denomination, network) {
+    const address = getContractAddress(currency, denomination, network);
+    const contract = new ethers.Contract(address, abi, provider);
     return contract.connect(wallet);
 }
 
-async function bunnyNotesWithdrawCashNote(contract, solidityProof, nullifierHash, commitment, recepient, change) {
-    return await contract.withdrawCashNote(solidityProof, nullifierHash, commitment, recepient, change);
+async function bunnyNotesWithdrawCashNote(contract, solidityProof, nullifierHash, commitment, recipient, change) {
+    return await contract.withdrawCashNote(solidityProof, nullifierHash, commitment, recipient, change);
 }
 
 async function bunnyNotesCommitments(contract, commitment) {
@@ -80,5 +106,5 @@ function verifyProof(verificationKey, { proof, publicSignals }) {
     )
 }
 
-module.exports = { toNoteHex, verifyProof, packToSolidityProof, CONTRACTADDRESS_USDTM_100, RPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent }
+module.exports = { validNetworks, toNoteHex, verifyProof, packToSolidityProof, CONTRACTADDRESS_USDTM_100, CONTRACTADDRESS_BTT_1, RPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent }
 
