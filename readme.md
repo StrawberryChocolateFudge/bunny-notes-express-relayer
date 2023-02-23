@@ -1,6 +1,6 @@
 # Bunny notes express relayer
 
-This server relays zero-knowledge proofs and submites them to BTTC network using ethers.js.
+This server relays zero-knowledge proofs and submites them to the network using ethers.js.
 
 ## Server setup
 
