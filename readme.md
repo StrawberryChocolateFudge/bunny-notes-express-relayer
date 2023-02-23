@@ -41,4 +41,4 @@ Install the dependencies and run the server with pm2 from the bunny user.
 
 # Run the server
 
-`NODE_ENV=<> SECRETKEY=<> pm2 start bin/www`
+`sh run.sh`
