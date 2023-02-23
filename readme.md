@@ -41,4 +41,6 @@ Install the dependencies and run the server with pm2 from the bunny user.
 
 # Run the server
 
-`sh run.sh`
+`chmod a+x run.sh` 
+
+`./run.sh`
