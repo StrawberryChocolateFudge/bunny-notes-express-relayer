@@ -7,11 +7,17 @@ const CONTRACTADDRESS_USDTM_100 = "0x94D1f7e4667f2aE54494C2a99A18C8B4aED9B22A";
 
 const CONTRACTADDRESS_BTT_1 = "0x2D524Ee2669b7F521B9d903A56002ba565cc50ba"
 
+const CONTRACTADDRESS_FANTOM_TESTNET_1FTM = "0xeE55e7A619343B2f045bfD9A720BF912e1FCfEC7";
+
 const BTTCTESTNETID = "0x405";
 
-const validNetworks = [BTTCTESTNETID];
+const FANTOMTESTNETID = "0xfa2";
 
-const RPCURL = "https://pre-rpc.bt.io/";
+const validNetworks = [BTTCTESTNETID, FANTOMTESTNETID];
+
+const BTTCNETWORKRPCURL = "https://pre-rpc.bt.io/";
+
+const FANTOMTESTNETRPCURL = "https://xapi.testnet.fantom.network/lachesis"
 
 function getContractAddress(currency, denomination, network) {
     switch (network) {
@@ -20,6 +26,10 @@ function getContractAddress(currency, denomination, network) {
                 return CONTRACTADDRESS_USDTM_100
             } else if (currency === "BTT" && denomination === "1") {
                 return CONTRACTADDRESS_BTT_1;
+            }
+        case FANTOMTESTNETID:
+            if (currency === "FTM" && denomination === "1") {
+                return CONTRACTADDRESS_FANTOM_TESTNET_1FTM;
             }
         default:
             return "";
@@ -34,7 +44,9 @@ async function getArtifact() {
 async function getProvider(network) {
     switch (network) {
         case BTTCTESTNETID:
-            return new ethers.providers.JsonRpcProvider(RPCURL)
+            return new ethers.providers.JsonRpcProvider(BTTCNETWORKRPCURL);
+        case FANTOMTESTNETID:
+            return new ethers.providers.JsonRpcProvider(FANTOMTESTNETRPCURL);
         default:
             break;
     }
@@ -106,5 +118,5 @@ function verifyProof(verificationKey, { proof, publicSignals }) {
     )
 }
 
-module.exports = { validNetworks, toNoteHex, verifyProof, packToSolidityProof, CONTRACTADDRESS_USDTM_100, CONTRACTADDRESS_BTT_1, RPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent }
+module.exports = { validNetworks, toNoteHex, verifyProof, packToSolidityProof, CONTRACTADDRESS_USDTM_100, CONTRACTADDRESS_BTT_1, CONTRACTADDRESS_FANTOM_TESTNET_1FTM, FANTOMTESTNETRPCURL, BTTCNETWORKRPCURL, getArtifact, getProvider, getWallet, getContract, bunnyNotesWithdrawCashNote, bunnyNotesCommitments, bunnyNoteIsSpent }
 
