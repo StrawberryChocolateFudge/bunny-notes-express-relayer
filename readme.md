@@ -1,4 +1,7 @@
-# Bunny notes express relayer
+#This is the old bunny notes relayer that was used for the hackathon presentation. It has been deprecated and rewritten in deno.
+
+## Bunny notes express relayer
+
 
 This server relays zero-knowledge proofs and submites them to the network using ethers.js.
 
